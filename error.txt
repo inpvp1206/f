@@ -1,0 +1,11 @@
+PyAudio detected 5 total devices.
+  [0] bcm2835 Headphones: - (hw:0,0) (Inputs: 0)
+  [1] ReSpeaker 4 Mic Array (UAC1.0): USB Audio (hw:2,0) (Inputs: 6)
+==> Target ReSpeaker device identified at index 1
+Starting Noise Monitor (Server: https://audiopi.onrender.com)...
+Threshold: 500, Interval: 0.5s
+USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
+USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
+USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
+USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
+USB Error reading DOA (likely stream collision): [Errno 32] Pipe error

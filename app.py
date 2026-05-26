@@ -11,7 +11,8 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # --- Database Setup ---
-DB_URL = "sqlite:///noise_data.db"
+DB_PATH = os.path.join(os.getcwd(), "noise_data.db")
+DB_URL = f"sqlite:///{DB_PATH}"
 Base = declarative_base()
 
 class NoiseEvent(Base):
@@ -43,12 +44,13 @@ if "doa" in params and "vol" in params:
         db.add(new_event)
         db.commit()
         db.close()
-        st.success("Data Logged")
+        print(f"DEBUG: Data saved to {DB_PATH} - DOA: {params['doa']}, VOL: {params['vol']}")
         # If it's an API call from RPi, we can stop here to save resources
         if params.get("api") == "true":
             st.write("OK")
             st.stop()
     except Exception as e:
+        print(f"DEBUG ERROR: {e}")
         st.error(f"Error: {e}")
 
 # --- Streamlit Dashboard ---
