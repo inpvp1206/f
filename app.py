@@ -63,14 +63,14 @@ def get_data(range_str):
     try:
         conn = sqlite3.connect(DB_PATH)
         query = "SELECT * FROM noise_events"
-        
+
         if range_str == "Last 1 Hour":
             query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=1)).isoformat() }'"
         elif range_str == "Last 6 Hours":
             query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=6)).isoformat() }'"
         elif range_str == "Last 24 Hours":
             query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=24)).isoformat() }'"
-            
+
         df = pd.read_sql_query(query, conn)
         conn.close()
         if not df.empty:
@@ -81,6 +81,10 @@ def get_data(range_str):
         return pd.DataFrame()
 
 df = get_data(time_range)
+
+# 디버깅용: DB 상태 확인
+st.sidebar.info(f"DB 경로: {DB_PATH}, 이벤트 수: {len(df)}")
+
 
 if df.empty:
     st.info("데이터가 없습니다. 라즈베리 파이에서 데이터를 전송하거나 샘플 데이터를 확인하세요.")
