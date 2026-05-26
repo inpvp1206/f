@@ -4,5 +4,3 @@ sqlalchemy
 pandas
 plotly
 numpy
-pyusb
-PyAudio
