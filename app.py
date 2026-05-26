@@ -11,6 +11,19 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # --- Database Setup ---
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
+import sqlite3
+from sqlalchemy import create_engine, Column, Integer, Float, DateTime, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import os
+
+# --- Database Setup ---
 DB_PATH = "/tmp/noise_data.db"
 DB_URL = f"sqlite:///{DB_PATH}"
 Base = declarative_base()
@@ -27,9 +40,8 @@ engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 Base.metadata.create_all(engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# --- API Logic (Embedded in Streamlit) ---
+# --- API Logic (Fast Path) ---
 params = st.query_params
-print(f"DEBUG: Params received: {params}") # Render 서버 로그에서 확인 가능
 if "doa" in params and "vol" in params:
     try:
         db = SessionLocal()
@@ -42,15 +54,16 @@ if "doa" in params and "vol" in params:
         db.add(new_event)
         db.commit()
         db.close()
-        if params.get("api") == "true":
-            st.write("OK")
-            st.stop()
+        # 데이터가 저장되면 UI를 그리지 않고 즉시 종료
+        st.write("OK")
+        st.stop()
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.write(f"Error: {e}")
         st.stop()
 
-# --- Streamlit Dashboard ---
+# --- Streamlit Dashboard (Slow Path) ---
 st.set_page_config(page_title="Noise Monitoring Dashboard", layout="wide")
+
 
 st.title("🔊 Real-time Noise Monitoring Dashboard")
 st.markdown("ReSpeaker Mic Array v3.0 데이터를 활용한 소음 이벤트 시각화")
