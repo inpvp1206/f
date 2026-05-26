@@ -64,13 +64,14 @@ class ReSpeakerClient:
         return np.sqrt(np.mean(samples**2)) # RMS Volume
 
     def send_data(self, doa, volume):
-        payload = {
+        # Using GET parameters for compatibility with single-port Streamlit deployment
+        params = {
             "doa": int(doa),
-            "volume": float(volume),
-            "metadata": "RPI_CLIENT_V1"
+            "vol": float(volume),
+            "api": "true"
         }
         try:
-            response = requests.post(f"{self.server_url}/log", json=payload, timeout=5)
+            response = requests.get(self.server_url, params=params, timeout=5)
             print(f"Sent: DOA={doa}, Vol={volume:.2f} | Status: {response.status_code}")
         except Exception as e:
             print(f"Failed to send data: {e}")

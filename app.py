@@ -8,11 +8,7 @@ import sqlite3
 from sqlalchemy import create_engine, Column, Integer, Float, DateTime, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import uvicorn
-import threading
-import time
+import os
 
 # --- Database Setup ---
 DB_URL = "sqlite:///noise_data.db"
@@ -22,59 +18,44 @@ class NoiseEvent(Base):
     __tablename__ = 'noise_events'
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    doa = Column(Integer)  # Direction of Arrival (0-359)
-    volume = Column(Float) # Volume/Amplitude
+    doa = Column(Integer)
+    volume = Column(Float)
     metadata = Column(String, nullable=True)
 
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 Base.metadata.create_all(engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# --- FastAPI App for Data Logging ---
-api_app = FastAPI()
-
-class NoiseLog(BaseModel):
-    doa: int
-    volume: float
-    metadata: str = None
-
-@api_app.post("/log")
-async def log_noise(data: NoiseLog):
-    db = SessionLocal()
+# --- API Logic (Embedded in Streamlit) ---
+# Usage: https://your-app.onrender.com/?key=secret123&doa=180&vol=500
+params = st.query_params
+if "doa" in params and "vol" in params:
+    # Basic Security (Optional)
+    # if params.get("key") == "secret123": 
     try:
+        db = SessionLocal()
         new_event = NoiseEvent(
-            doa=data.doa,
-            volume=data.volume,
-            metadata=data.metadata,
-            timestamp=datetime.now()
+            doa=int(params["doa"]),
+            volume=float(params["vol"]),
+            timestamp=datetime.now(),
+            metadata="GET_API"
         )
         db.add(new_event)
         db.commit()
-        return {"status": "success", "id": new_event.id}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
         db.close()
-
-@api_app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-def run_api():
-    uvicorn.run(api_app, host="0.0.0.0", port=8000)
-
-# Start FastAPI in a background thread
-if 'api_thread' not in st.session_state:
-    thread = threading.Thread(target=run_api, daemon=True)
-    thread.start()
-    st.session_state['api_thread'] = True
+        st.success("Data Logged")
+        # If it's an API call from RPi, we can stop here to save resources
+        if params.get("api") == "true":
+            st.write("OK")
+            st.stop()
+    except Exception as e:
+        st.error(f"Error: {e}")
 
 # --- Streamlit Dashboard ---
 st.set_page_config(page_title="Noise Monitoring Dashboard", layout="wide")
 
 st.title("🔊 Real-time Noise Monitoring Dashboard")
-st.markdown("ReSpeaker Mic Array v3.0 데이터를 활용한 소음 이벤트 및 위치 시각화")
+st.markdown("ReSpeaker Mic Array v3.0 데이터를 활용한 소음 이벤트 시각화")
 
 # Sidebar
 st.sidebar.header("Filter & Settings")
@@ -82,50 +63,53 @@ time_range = st.sidebar.selectbox("Time Range", ["Last 1 Hour", "Last 6 Hours", 
 
 # Data Loading
 def get_data(range_str):
-    conn = sqlite3.connect("noise_data.db")
-    query = "SELECT * FROM noise_events"
-    
-    if range_str == "Last 1 Hour":
-        query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=1)).isoformat() }'"
-    elif range_str == "Last 6 Hours":
-        query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=6)).isoformat() }'"
-    elif range_str == "Last 24 Hours":
-        query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=24)).isoformat() }'"
+    try:
+        conn = sqlite3.connect("noise_data.db")
+        query = "SELECT * FROM noise_events"
         
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    if not df.empty:
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-    return df
+        if range_str == "Last 1 Hour":
+            query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=1)).isoformat() }'"
+        elif range_str == "Last 6 Hours":
+            query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=6)).isoformat() }'"
+        elif range_str == "Last 24 Hours":
+            query += f" WHERE timestamp > '{ (datetime.now() - timedelta(hours=24)).isoformat() }'"
+            
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        if not df.empty:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        return df
+    except Exception as e:
+        st.error(f"DB Read Error: {e}")
+        return pd.DataFrame()
 
 df = get_data(time_range)
 
 if df.empty:
-    st.warning("No data found for the selected range. Send some data to /log endpoint!")
-    # Show dummy data if empty for preview (optional)
-    if st.checkbox("Show sample data"):
+    st.info("데이터가 없습니다. 라즈베리 파이에서 데이터를 전송하거나 샘플 데이터를 확인하세요.")
+    if st.checkbox("샘플 데이터 보기"):
         df = pd.DataFrame({
-            'timestamp': [datetime.now() - timedelta(minutes=i) for i in range(10)],
-            'doa': np.random.randint(0, 360, 10),
-            'volume': np.random.uniform(20, 80, 10)
+            'timestamp': [datetime.now() - timedelta(minutes=i*10) for i in range(20)],
+            'doa': np.random.randint(0, 360, 20),
+            'volume': np.random.uniform(200, 2000, 20)
         })
-else:
+
+if not df.empty:
     # --- Metrics ---
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Total Events", len(df))
+        st.metric("총 소음 이벤트", f"{len(df)} 건")
     with col2:
-        st.metric("Avg Volume", f"{df['volume'].mean():.2f} dB")
+        st.metric("평균 소음 수치", f"{df['volume'].mean():.1f} RMS")
     with col3:
-        peak_doa = df.loc[df['volume'].idxmax(), 'doa'] if not df.empty else 0
-        st.metric("Peak Noise Dir", f"{peak_doa}°")
+        peak_idx = df['volume'].idxmax()
+        st.metric("최대 소음 방향", f"{df.loc[peak_idx, 'doa']}°")
 
     # --- Charts ---
     c1, c2 = st.columns([1, 1])
 
     with c1:
-        st.subheader("📍 Direction of Noise (DOA)")
-        # Polar plot for DOA
+        st.subheader("📍 소음 발생 방향 (DOA)")
         fig_polar = go.Figure()
         fig_polar.add_trace(go.Scatterpolar(
             r=df['volume'],
@@ -134,36 +118,31 @@ else:
             marker=dict(
                 size=10,
                 color=df['volume'],
-                colorscale='Viridis',
+                colorscale='Reds',
                 showscale=True
-            ),
-            name='Noise Events'
+            )
         ))
         fig_polar.update_layout(
             polar=dict(
-                radialaxis=dict(visible=True, range=[0, df['volume'].max() + 10]),
                 angularaxis=dict(direction="clockwise", period=360)
-            )
+            ),
+            height=400
         )
         st.plotly_chart(fig_polar, use_container_width=True)
 
     with c2:
-        st.subheader("📈 Noise Level Over Time")
-        fig_line = px.line(df, x='timestamp', y='volume', title="Volume Trend")
+        st.subheader("📈 시간별 소음 추이")
+        fig_line = px.line(df, x='timestamp', y='volume', markers=True)
+        fig_line.update_layout(height=400)
         st.plotly_chart(fig_line, use_container_width=True)
 
-    # --- History Table ---
-    st.subheader("📋 Recent Events")
+    st.subheader("📋 최근 이벤트 로그 (최신 20건)")
     st.dataframe(df.sort_values(by='timestamp', ascending=False).head(20), use_container_width=True)
 
 # Auto-refresh
-if st.sidebar.button("Refresh Data"):
+if st.sidebar.button("데이터 새로고침"):
     st.rerun()
 
-# API Info
 st.sidebar.divider()
-st.sidebar.info(f"""
-**API Endpoint:** `POST /log`  
-**Internal Port:** 8000  
-**Schema:** `{{ "doa": int, "volume": float, "metadata": str }}`
-""")
+st.sidebar.caption("Render 배포 시 'Start Command'를 확인하세요:")
+st.sidebar.code(f"streamlit run app.py --server.port $PORT")

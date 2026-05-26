@@ -1,10 +1,6 @@
 requests
 streamlit
-fastapi
-uvicorn
 sqlalchemy
 pandas
 plotly
 numpy
-matplotlib
-h5py
