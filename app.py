@@ -29,6 +29,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # --- API Logic (Embedded in Streamlit) ---
 params = st.query_params
+print(f"DEBUG: Params received: {params}") # Render 서버 로그에서 확인 가능
 if "doa" in params and "vol" in params:
     try:
         db = SessionLocal()
