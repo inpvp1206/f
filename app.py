@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, render_template_string
 import sqlite3
 import pandas as pd
 from datetime import datetime
@@ -14,13 +14,13 @@ def init_db():
                      timestamp DATETIME, 
                      doa INTEGER, 
                      volume FLOAT)''')
+    conn.commit()
     conn.close()
 
 init_db()
 
 @app.route('/', methods=['GET'])
 def index():
-    # 데이터 수신 엔드포인트
     doa = request.args.get('doa')
     vol = request.args.get('vol')
     
@@ -32,7 +32,6 @@ def index():
         conn.close()
         return "OK", 200
         
-    # 대시보드 뷰
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql_query("SELECT * FROM noise_events ORDER BY timestamp DESC LIMIT 20", conn)
     conn.close()
