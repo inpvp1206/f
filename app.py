@@ -20,7 +20,7 @@ class NoiseEvent(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     doa = Column(Integer)
     volume = Column(Float)
-    metadata = Column(String, nullable=True)
+    additional_info = Column(String, nullable=True)
 
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 Base.metadata.create_all(engine)
@@ -38,7 +38,7 @@ if "doa" in params and "vol" in params:
             doa=int(params["doa"]),
             volume=float(params["vol"]),
             timestamp=datetime.now(),
-            metadata="GET_API"
+            additional_info="GET_API"
         )
         db.add(new_event)
         db.commit()
