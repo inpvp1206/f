@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # --- Database Setup ---
-DB_PATH = os.path.join(os.getcwd(), "noise_data.db")
+DB_PATH = "/tmp/noise_data.db"
 DB_URL = f"sqlite:///{DB_PATH}"
 Base = declarative_base()
 
@@ -28,11 +28,8 @@ Base.metadata.create_all(engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # --- API Logic (Embedded in Streamlit) ---
-# Usage: https://your-app.onrender.com/?key=secret123&doa=180&vol=500
 params = st.query_params
 if "doa" in params and "vol" in params:
-    # Basic Security (Optional)
-    # if params.get("key") == "secret123": 
     try:
         db = SessionLocal()
         new_event = NoiseEvent(
@@ -44,14 +41,12 @@ if "doa" in params and "vol" in params:
         db.add(new_event)
         db.commit()
         db.close()
-        print(f"DEBUG: Data saved to {DB_PATH} - DOA: {params['doa']}, VOL: {params['vol']}")
-        # If it's an API call from RPi, we can stop here to save resources
         if params.get("api") == "true":
             st.write("OK")
             st.stop()
     except Exception as e:
-        print(f"DEBUG ERROR: {e}")
         st.error(f"Error: {e}")
+        st.stop()
 
 # --- Streamlit Dashboard ---
 st.set_page_config(page_title="Noise Monitoring Dashboard", layout="wide")
@@ -66,7 +61,7 @@ time_range = st.sidebar.selectbox("Time Range", ["Last 1 Hour", "Last 6 Hours", 
 # Data Loading
 def get_data(range_str):
     try:
-        conn = sqlite3.connect("noise_data.db")
+        conn = sqlite3.connect(DB_PATH)
         query = "SELECT * FROM noise_events"
         
         if range_str == "Last 1 Hour":

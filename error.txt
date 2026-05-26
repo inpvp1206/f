@@ -1,11 +1,14 @@
-PyAudio detected 5 total devices.
-  [0] bcm2835 Headphones: - (hw:0,0) (Inputs: 0)
-  [1] ReSpeaker 4 Mic Array (UAC1.0): USB Audio (hw:2,0) (Inputs: 6)
-==> Target ReSpeaker device identified at index 1
-Starting Noise Monitor (Server: https://audiopi.onrender.com)...
-Threshold: 500, Interval: 0.5s
-USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
-USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
-USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
-USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
-USB Error reading DOA (likely stream collision): [Errno 32] Pipe error
+/opt/render/project/src/app.py:16: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  Base = declarative_base()
+/opt/render/project/src/app.py:16: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  Base = declarative_base()
+/opt/render/project/src/app.py:16: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  Base = declarative_base()
+/opt/render/project/src/app.py:16: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+Menu
+  Base = declarative_base()
+/opt/render/project/src/app.py:16: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  Base = declarative_base()
+/opt/render/project/src/app.py:16: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  Base = declarative_base()
+  Stopping...
