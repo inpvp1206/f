@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import os
+import json
 
 app = Flask(__name__)
 DB_PATH = "/tmp/noise_data.db"
@@ -36,12 +37,35 @@ def index():
     df = pd.read_sql_query("SELECT * FROM noise_events ORDER BY timestamp DESC LIMIT 20", conn)
     conn.close()
     
+    labels = df['timestamp'].dt.strftime('%H:%M:%S').tolist()[::-1]
+    values = df['volume'].tolist()[::-1]
+    
     html = f"""
-    <h1>🔊 Noise Dashboard</h1>
-    <table border="1">
-        <tr><th>Time</th><th>DOA</th><th>Volume</th></tr>
-        {"".join([f"<tr><td>{row['timestamp']}</td><td>{row['doa']}</td><td>{row['volume']:.2f}</td></tr>" for _, row in df.iterrows()])}
-    </table>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Noise Dashboard</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+        <h1>🔊 Real-time Noise Monitoring Dashboard</h1>
+        <canvas id="myChart" width="400" height="100"></canvas>
+        <table border="1">
+            <tr><th>Time</th><th>DOA</th><th>Volume</th></tr>
+            {"".join([f"<tr><td>{row['timestamp']}</td><td>{row['doa']}</td><td>{row['volume']:.2f}</td></tr>" for _, row in df.iterrows()])}
+        </table>
+        <script>
+            const ctx = document.getElementById('myChart').getContext('2d');
+            new Chart(ctx, {{
+                type: 'line',
+                data: {{
+                    labels: {json.dumps(labels)},
+                    datasets: [{{ label: 'Volume', data: {json.dumps(values)}, borderColor: 'red' }}]
+                }}
+            }});
+        </script>
+    </body>
+    </html>
     """
     return render_template_string(html)
 
