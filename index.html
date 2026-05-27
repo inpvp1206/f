@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acoustic Event Radar - Real-Time Dashboard</title>
+    <!-- Google Fonts: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Base Setup & Color Variables */
+        :root {
+            --bg-gradient: radial-gradient(circle at top, #0f172a 0%, #020617 100%);
+            --glass-bg: rgba(15, 23, 42, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glow-cyan: #00f0ff;
+            --glow-pink: #ff007f;
+            --glow-green: #10b981;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --font-display: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+        }
+
+        /* Glassmorphism Card Utility */
+        .glass-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            padding: 24px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                        border-color 0.3s ease, 
+                        box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(0, 240, 255, 0.2);
+            box-shadow: 0 12px 40px 0 rgba(0, 240, 255, 0.08);
+        }
+
+        /* App Layout Grid */
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            flex-grow: 1;
+        }
+
+        /* Header Styles */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding-bottom: 8px;
+        }
+
+        .brand-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .brand-title {
+            font-family: var(--font-display);
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 30%, #a5f3fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-title i {
+            color: var(--glow-cyan);
+            filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        .brand-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* Control Panel / Settings */
+        .controls-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-badge {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            padding: 8px 14px;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.offline {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--glow-green);
+            box-shadow: 0 0 8px var(--glow-green);
+            display: inline-block;
+        }
+
+        .status-badge.offline .status-dot {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            animation: none;
+        }
+
+        .btn-settings {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-settings:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--glow-cyan);
+            border-color: rgba(0, 240, 255, 0.3);
+        }
+
+        /* Settings Slide Panel */
+        .settings-panel {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: -8px;
+            animation: slide-down 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            max-width: 500px;
+        }
+
+        .input-url {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        .input-url:focus {
+            border-color: var(--glow-cyan);
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #00f0ff 0%, #0077ff 100%);
+            border: none;
+            color: #020617;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-save:hover {
+            opacity: 0.9;
+        }
+
+        /* Dashboard Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 480px 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Radar Card */
+        .radar-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .radar-title {
+            align-self: flex-start;
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+        }
+
+        .radar-title i {
+            color: var(--glow-cyan);
+        }
+
+        .radar-container {
+            position: relative;
+            width: 380px;
+            height: 380px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #radarCanvas {
+            border-radius: 50%;
+            background: radial-gradient(circle, #020617 30%, #090d16 100%);
+            box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.15),
+                        0 0 30px rgba(0, 240, 255, 0.05);
+        }
+
+        /* KPI and Charts section */
+        .analytics-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .kpi-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            position: relative;
+        }
+
+        .kpi-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .kpi-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-value {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .kpi-detail {
+            font-size: 0.75rem;
+            color: var(--glow-cyan);
+        }
+
+        .kpi-icon {
+            font-size: 2rem;
+            color: rgba(255, 255, 255, 0.1);
+            transition: color 0.3s;
+        }
+
+        .kpi-card:hover .kpi-icon {
+            color: rgba(0, 240, 255, 0.25);
+        }
+
+        .kpi-card.alert-active {
+            border-color: rgba(255, 0, 127, 0.2);
+        }
+        .kpi-card.alert-active .kpi-icon {
+            color: rgba(255, 0, 127, 0.15);
+        }
+        .kpi-card.alert-active:hover .kpi-icon {
+            color: rgba(255, 0, 127, 0.35);
+        }
+        .kpi-card.alert-active .kpi-detail {
+            color: var(--glow-pink);
+        }
+
+        /* Stream Chart Card */
+        .chart-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            height: 300px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-title {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-title i {
+            color: var(--glow-cyan);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Table Card */
+        .table-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .table-title {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-title i {
+            color: var(--glow-cyan);
+        }
+
+        .btn-clear {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-clear:hover {
+            background: #ef4444;
+            color: #ffffff;
+            border-color: #ef4444;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        /* Scrollbar customizing */
+        .table-wrapper::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track,
+        body::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb,
+        body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb:hover,
+        body::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 240, 255, 0.4);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            font-family: var(--font-display);
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--glass-border);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Direction badges */
+        .badge-dir {
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            color: var(--glow-cyan);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+        }
+
+        .badge-vol {
+            font-family: var(--font-display);
+            font-weight: 700;
+        }
+
+        .badge-vol.high {
+            color: var(--glow-pink);
+            text-shadow: 0 0 6px rgba(255, 0, 127, 0.4);
+        }
+
+        /* Card Header Tabs */
+        .card-header-tabs {
+            display: flex;
+            gap: 8px;
+            align-self: flex-start;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            width: 100%;
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-btn.active {
+            color: var(--glow-cyan);
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+        }
+
+        .tab-content {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .heatmap-controls {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 12px;
+            padding: 0 10px;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                opacity: 1;
+                filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+            }
+            50% {
+                opacity: 0.7;
+                filter: drop-shadow(0 0 3px rgba(0, 240, 255, 0.3));
+            }
+        }
+
+        @keyframes slide-down {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Dashboard Header -->
+        <header>
+            <div class="brand-section">
+                <h1 class="brand-title"><i class="fa-solid fa-radar"></i> ACOUSTIC EVENT RADAR</h1>
+                <p class="brand-subtitle">ReSpeaker XVF3000 기반 실시간 소음 감지 및 DOA 추적 대시보드</p>
+            </div>
+            <div class="controls-section">
+                <div id="statusBadge" class="status-badge offline">
+                    <span class="status-dot"></span>
+                    <span id="statusText">연결 대기 중</span>
+                </div>
+                <button class="btn-settings" id="toggleSettings" title="서버 주소 설정">
+                    <i class="fa-solid fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Settings Slide-down panel -->
+        <div class="glass-card settings-panel" id="settingsPanel">
+            <h3 style="font-family: var(--font-display); font-size: 1rem; margin-bottom: 4px;">백엔드 서버 설정</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px;">정적 CDN 배포 환경일 경우 Flask API 주소를 입력하세요.</p>
+            <div class="settings-grid">
+                <input type="text" class="input-url" id="apiUrlInput" placeholder="예: https://your-backend.onrender.com">
+                <button class="btn-save" id="saveSettingsBtn">저장 및 연결</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Widgets -->
+        <div class="dashboard-grid">
+            <!-- Left Side: Acoustic Spatial Radar with Tabs -->
+            <div class="glass-card radar-card">
+                <div class="card-header-tabs">
+                    <button class="tab-btn active" data-tab="liveRadarTab">
+                        <i class="fa-solid fa-crosshairs"></i> 실시간 레이더
+                    </button>
+                    <button class="tab-btn" data-tab="heatmapTab">
+                        <i class="fa-solid fa-fire"></i> 소음 분포 히트맵
+                    </button>
+                </div>
+                
+                <!-- Tab 1: Live Radar -->
+                <div class="tab-content" id="liveRadarTab">
+                    <div class="radar-container">
+                        <canvas id="radarCanvas" width="360" height="360"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Heatmap -->
+                <div class="tab-content" id="heatmapTab" style="display: none;">
+                    <div class="heatmap-controls">
+                        <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
+                            <i class="fa-solid fa-calendar-days" style="margin-right: 6px; color: var(--glow-cyan);"></i> 누적 기간 선택:
+                        </span>
+                        <select class="input-url" id="heatmapPeriodSelect" style="width: auto; padding: 6px 14px; font-size: 0.85rem;">
+                            <option value="1h">최근 1시간</option>
+                            <option value="6h">최근 6시간</option>
+                            <option value="24h" selected>최근 24시간</option>
+                            <option value="all">전체 기간</option>
+                        </select>
+                    </div>
+                    <div class="radar-container">
+                        <canvas id="heatmapCanvas" width="360" height="360"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Analytics KPIs & Trend Chart -->
+            <div class="analytics-section">
+                <!-- KPI Row -->
+                <div class="kpi-grid">
+                    <!-- AVG Level -->
+                    <div class="glass-card kpi-card">
+                        <div class="kpi-info">
+                            <span class="kpi-label">평균 소음 레벨</span>
+                            <span class="kpi-value" id="kpiAvg">0.0</span>
+                            <span class="kpi-detail">최근 50개 기준</span>
+                        </div>
+                        <i class="fa-solid fa-volume-low kpi-icon"></i>
+                    </div>
+                    <!-- Peak Level -->
+                    <div class="glass-card kpi-card">
+                        <div class="kpi-info">
+                            <span class="kpi-label">최고 피크 레벨</span>
+                            <span class="kpi-value" id="kpiMax">0.0</span>
+                            <span class="kpi-detail" id="kpiMaxDoa">방향: -</span>
+                        </div>
+                        <i class="fa-solid fa-volume-high kpi-icon"></i>
+                    </div>
+                    <!-- Active Alerts -->
+                    <div class="glass-card kpi-card" id="alertCard">
+                        <div class="kpi-info">
+                            <span class="kpi-label">소음 경보 건수</span>
+                            <span class="kpi-value" id="kpiAlerts">0</span>
+                            <span class="kpi-detail">오늘 발생 (>= 500)</span>
+                        </div>
+                        <i class="fa-solid fa-triangle-exclamation kpi-icon"></i>
+                    </div>
+                </div>
+
+                <!-- Stream Chart Card -->
+                <div class="glass-card chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title"><i class="fa-solid fa-chart-line"></i> 소음 레벨 실시간 트렌드</h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Events Log Table -->
+        <div class="glass-card table-card">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fa-solid fa-list-ul"></i> 최근 공간 소음 이벤트 로그</h3>
+                <button class="btn-clear" id="clearDbBtn">
+                    <i class="fa-solid fa-trash-can"></i> 이력 초기화
+                </button>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>감지 시각</th>
+                            <th>상대 시간</th>
+                            <th>소음 레벨 (RMS)</th>
+                            <th>소리 유입 방향 (DOA)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eventsTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 24px;">이벤트 로딩 중...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI/UX and Chart Scripts -->
+    <script>
+        // --- Configuration & Local Storage ---
+        let API_BASE_URL = localStorage.getItem('noise_api_url') || '';
+        
+        // Auto-detect URL context if empty
+        if (!API_BASE_URL) {
+            // If running on a local file system, default to localhost
+            if (window.location.protocol === 'file:') {
+                API_BASE_URL = 'http://localhost:8080';
+            } else {
+                API_BASE_URL = window.location.origin;
+            }
+        }
+
+        // --- Settings Panel Toggle ---
+        const toggleSettings = document.getElementById('toggleSettings');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const apiUrlInput = document.getElementById('apiUrlInput');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+        apiUrlInput.value = API_BASE_URL;
+
+        toggleSettings.addEventListener('click', () => {
+            const isDisplayed = settingsPanel.style.display === 'flex';
+            settingsPanel.style.display = isDisplayed ? 'none' : 'flex';
+        });
+
+        saveSettingsBtn.addEventListener('click', () => {
+            const val = apiUrlInput.value.trim();
+            if (val) {
+                // Strip trailing slash if present
+                API_BASE_URL = val.replace(/\/$/, "");
+                localStorage.setItem('noise_api_url', API_BASE_URL);
+                settingsPanel.style.display = 'none';
+                // Trigger immediate refetch
+                fetchData();
+            }
+        });
+
+        // --- Custom Canvas Radar Animation ---
+        const canvas = document.getElementById('radarCanvas');
+        const ctx = canvas.getContext('2d');
+        let sweepAngle = 0;
+        let blips = []; // items: { angle, distance, val, timestamp }
+
+        function drawRadar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const maxRadius = Math.min(cx, cy) - 25;
+
+            // 1. Draw radar sweep space background
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.4)';
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // 2. Draw nested grid rings
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.12)';
+            ctx.lineWidth = 1;
+            for (let r = 0.25; r <= 1.0; r += 0.25) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, maxRadius * r, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+
+            // 3. Draw crosshairs
+            ctx.beginPath();
+            ctx.moveTo(cx - maxRadius, cy);
+            ctx.lineTo(cx + maxRadius, cy);
+            ctx.moveTo(cx, cy - maxRadius);
+            ctx.lineTo(cx, cy + maxRadius);
+            ctx.stroke();
+
+            // 4. Draw degree indicators (0 deg is north, clockwise)
+            ctx.fillStyle = 'rgba(0, 240, 255, 0.5)';
+            ctx.font = '500 10px var(--font-display)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('0° (N)', cx, cy - maxRadius - 12);
+            ctx.fillText('90° (E)', cx + maxRadius + 12, cy);
+            ctx.fillText('180° (S)', cx, cy + maxRadius + 12);
+            ctx.fillText('270° (W)', cx - maxRadius - 12, cy);
+
+            // 5. Draw rotating sweep line
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(sweepAngle);
+            
+            // Sweep tail gradient
+            const sweepGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, maxRadius);
+            sweepGrad.addColorStop(0, 'rgba(0, 240, 255, 0.25)');
+            sweepGrad.addColorStop(1, 'rgba(0, 240, 255, 0.0)');
+            
+            ctx.fillStyle = sweepGrad;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            const tailSegments = 45;
+            for (let i = 0; i <= tailSegments; i++) {
+                const theta = - (i / tailSegments) * 0.45; // angle coverage of sweep
+                ctx.lineTo(maxRadius * Math.cos(theta), maxRadius * Math.sin(theta));
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw primary sweep line
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.85)';
+            ctx.lineWidth = 1.8;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = 'rgba(0, 240, 255, 0.8)';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(maxRadius, 0);
+            ctx.stroke();
+            ctx.restore();
+
+            // 6. Draw blips representing sound sources
+            const now = Date.now();
+            blips.forEach(blip => {
+                // Map DOA degree (0-360) where 0 is up (North) to Canvas Coordinates (0 rad is right)
+                // Hence we subtract 90 degrees to rotate it counterclockwise to North.
+                const rad = (blip.angle - 90) * Math.PI / 180;
+                const x = cx + blip.distance * maxRadius * Math.cos(rad);
+                const y = cy + blip.distance * maxRadius * Math.sin(rad);
+
+                const age = now - blip.timestamp;
+                const lifeSpan = 7000; // 7 seconds blip duration
+                if (age < lifeSpan) {
+                    const pct = 1 - (age / lifeSpan);
+                    
+                    // Style glow
+                    ctx.save();
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = `rgba(255, 0, 127, ${pct})`;
+                    ctx.fillStyle = `rgba(255, 0, 127, ${pct})`;
+                    
+                    // Main point
+                    ctx.beginPath();
+                    const size = 5 + pct * 6;
+                    ctx.arc(x, y, size, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // Outer pulse ring
+                    ctx.strokeStyle = `rgba(255, 0, 127, ${pct * 0.4})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size * 2.2, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // Sound tag info
+                    ctx.fillStyle = `rgba(255, 255, 255, ${pct * 0.85})`;
+                    ctx.font = '600 10px var(--font-display)';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${blip.val.toFixed(0)} (${blip.angle}°)`, x, y - size - 5);
+                }
+            });
+
+            // Adjust sweep speed
+            sweepAngle += 0.015;
+            if (sweepAngle > 2 * Math.PI) sweepAngle -= 2 * Math.PI;
+
+            requestAnimationFrame(drawRadar);
+        }
+
+        // Initialize Radar Loop
+        drawRadar();
+
+        // --- Chart.js Trend Configuration ---
+        const chartCtx = document.getElementById('volumeChart').getContext('2d');
+        
+        // Gradient background for Line Chart
+        const lineGrad = chartCtx.createLinearGradient(0, 0, 0, 250);
+        lineGrad.addColorStop(0, 'rgba(0, 240, 255, 0.35)');
+        lineGrad.addColorStop(1, 'rgba(0, 240, 255, 0.0)');
+
+        const volumeChart = new Chart(chartCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '소음도 (RMS Volume)',
+                    data: [],
+                    borderColor: '#00f0ff',
+                    borderWidth: 2,
+                    backgroundColor: lineGrad,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#00f0ff',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                        ticks: { color: '#64748b', font: { family: 'Inter', size: 10 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                        ticks: { color: '#64748b', font: { family: 'Inter', size: 10 } },
+                        min: 0,
+                        max: 1000
+                    }
+                }
+            }
+        });
+
+        // --- Data Fetching and State Management ---
+        let lastEventId = null;
+        let lastReceivedTime = null;
+
+        // Relative time helper
+        function getRelativeTime(timestampStr) {
+            const eventTime = new Date(timestampStr.replace(/-/g, '/')); // Convert to standard format for cross-browser
+            const diffMs = Date.now() - eventTime.getTime();
+            const diffSec = Math.floor(diffMs / 1000);
+            
+            if (diffSec < 5) return '방금 전';
+            if (diffSec < 60) return `${diffSec}초 전`;
+            const diffMin = Math.floor(diffSec / 60);
+            if (diffMin < 60) return `${diffMin}분 전`;
+            const diffHr = Math.floor(diffMin / 60);
+            return `${diffHr}시간 전`;
+        }
+
+        // Periodic relative time update for events table
+        setInterval(() => {
+            const rows = document.querySelectorAll('#eventsTableBody tr');
+            rows.forEach(row => {
+                const ts = row.getAttribute('data-timestamp');
+                if (ts) {
+                    const relativeEl = row.querySelector('.relative-time');
+                    if (relativeEl) relativeEl.textContent = getRelativeTime(ts);
+                }
+            });
+            updateSystemStatus();
+        }, 1000);
+
+        function updateSystemStatus() {
+            const badge = document.getElementById('statusBadge');
+            const text = document.getElementById('statusText');
+            
+            if (!lastReceivedTime) {
+                badge.className = 'status-badge offline';
+                text.textContent = '연결 대기 중';
+                return;
+            }
+
+            const diffSec = (Date.now() - lastReceivedTime) / 1000;
+            if (diffSec < 6) {
+                badge.className = 'status-badge';
+                text.textContent = '노이즈 수집 중';
+            } else if (diffSec < 60) {
+                badge.className = 'status-badge';
+                // Amber style color manually for inactive but online
+                badge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                badge.style.background = 'rgba(245, 158, 11, 0.1)';
+                badge.style.color = '#f59e0b';
+                text.textContent = '대기 모드 (유휴)';
+                const dot = badge.querySelector('.status-dot');
+                if (dot) {
+                    dot.style.background = '#f59e0b';
+                    dot.style.boxShadow = '0 0 8px #f59e0b';
+                }
+            } else {
+                badge.removeAttribute('style'); // reset amber
+                const dot = badge.querySelector('.status-dot');
+                if (dot) dot.removeAttribute('style');
+                badge.className = 'status-badge offline';
+                text.textContent = '최근 신호 없음';
+            }
+        }
+
+        async function fetchData() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/data`);
+                if (!res.ok) throw new Error('API request failed');
+                const data = await res.json();
+                
+                // Update KPI values
+                document.getElementById('kpiAvg').textContent = data.stats.avg_volume.toFixed(1);
+                document.getElementById('kpiMax').textContent = data.stats.max_volume.toFixed(1);
+                document.getElementById('kpiMaxDoa').textContent = `피크 방향: ${data.stats.peak_doa}°`;
+                
+                const alertsCount = data.stats.alerts_today;
+                const alertsEl = document.getElementById('kpiAlerts');
+                alertsEl.textContent = alertsCount;
+                
+                const alertCard = document.getElementById('alertCard');
+                if (alertsCount > 0) {
+                    alertCard.classList.add('alert-active');
+                } else {
+                    alertCard.classList.remove('alert-active');
+                }
+
+                // Process Events list
+                const events = data.events;
+                const tableBody = document.getElementById('eventsTableBody');
+                
+                if (events.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 24px;">수집된 노이즈 이벤트 데이터가 없습니다.</td></tr>`;
+                    // Reset Chart
+                    volumeChart.data.labels = [];
+                    volumeChart.data.datasets[0].data = [];
+                    volumeChart.update();
+                    return;
+                }
+
+                // Update system heartbeat
+                lastReceivedTime = Date.now();
+
+                // Format lists for Trend Chart
+                const chartLabels = [];
+                const chartData = [];
+                
+                // Reverse events sequence to display chronological order left-to-right (last 20 events)
+                const recent20 = events.slice(-20);
+                recent20.forEach(e => {
+                    // Extract time portion e.g., "12:05:43"
+                    const timeOnly = e.timestamp.split(' ')[1] || e.timestamp;
+                    chartLabels.push(timeOnly);
+                    chartData.push(e.volume);
+                });
+
+                volumeChart.data.labels = chartLabels;
+                volumeChart.data.datasets[0].data = chartData;
+                volumeChart.options.scales.y.max = 5000; // Updated max volume
+                volumeChart.update();
+
+                // Fill Table (Latest events at the top)
+                let tableHtml = '';
+                const displayEvents = [...events].reverse(); // copy and reverse for desc log view
+                
+                displayEvents.forEach(e => {
+                    const isHigh = e.volume >= 3000; // Updated alert threshold
+                    tableHtml += `
+                        <tr data-timestamp="${e.timestamp}">
+                            <td>${e.timestamp}</td>
+                            <td class="relative-time">${getRelativeTime(e.timestamp)}</td>
+                            <td><span class="badge-vol ${isHigh ? 'high' : ''}">${e.volume.toFixed(2)} RMS</span></td>
+                            <td><span class="badge-dir"><i class="fa-solid fa-location-arrow" style="transform: rotate(${e.doa - 45}deg); margin-right: 6px;"></i>${e.doa}°</span></td>
+                        </tr>
+                    `;
+                });
+                tableBody.innerHTML = tableHtml;
+
+                // Push new events to radar as blips
+                events.forEach(e => {
+                    if (lastEventId === null || e.id > lastEventId) {
+                        // Max distance is scaled relative to max volume 5000
+                        const distance = Math.min(e.volume / 5000, 1.0);
+                        blips.push({
+                            angle: e.doa,
+                            distance: distance,
+                            val: e.volume,
+                            timestamp: Date.now()
+                        });
+                    }
+                });
+
+                if (events.length > 0) {
+                    lastEventId = events[events.length - 1].id;
+                }
+
+            } catch (err) {
+                console.error('Error fetching data:', err);
+                const badge = document.getElementById('statusBadge');
+                const text = document.getElementById('statusText');
+                badge.className = 'status-badge offline';
+                text.textContent = 'API 서버 연결 에러';
+            }
+        }
+
+        // --- Database History Clearance ---
+        const clearDbBtn = document.getElementById('clearDbBtn');
+        clearDbBtn.addEventListener('click', async () => {
+            if (!confirm('정말로 모든 소음 분석 로그와 데이터베이스 이력을 삭제하시겠습니까?')) {
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clear`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!res.ok) throw new Error('Clear operation failed');
+                
+                // Clear state
+                lastEventId = null;
+                blips = [];
+                seenEventIds?.clear();
+                
+                // Refresh
+                fetchData();
+                if (document.getElementById('heatmapTab').style.display !== 'none') {
+                    fetchHeatmapData();
+                }
+            } catch (err) {
+                alert(`이력 초기화 실패: ${err.message}`);
+            }
+        });
+
+        // --- Heatmap Tab Switching & Rendering ---
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const heatmapPeriodSelect = document.getElementById('heatmapPeriodSelect');
+        let heatmapInterval = null;
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const targetTab = btn.getAttribute('data-tab');
+                tabContents.forEach(content => {
+                    if (content.id === targetTab) {
+                        content.style.display = 'flex';
+                        if (targetTab === 'heatmapTab') {
+                            fetchHeatmapData();
+                            // Start polling heatmap data every 3 seconds while open
+                            if (!heatmapInterval) {
+                                heatmapInterval = setInterval(fetchHeatmapData, 3000);
+                            }
+                        } else {
+                            // Clear heatmap polling when returning to live view
+                            if (heatmapInterval) {
+                                clearInterval(heatmapInterval);
+                                heatmapInterval = null;
+                            }
+                        }
+                    } else {
+                        content.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        heatmapPeriodSelect.addEventListener('change', fetchHeatmapData);
+
+        function drawHeatmap(events) {
+            const hCanvas = document.getElementById('heatmapCanvas');
+            if (!hCanvas) return;
+            const hCtx = hCanvas.getContext('2d');
+            
+            hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
+            const cx = hCanvas.width / 2;
+            const cy = hCanvas.height / 2;
+            const maxRadius = Math.min(cx, cy) - 25;
+
+            // Background space
+            hCtx.fillStyle = 'rgba(2, 6, 23, 0.4)';
+            hCtx.beginPath();
+            hCtx.arc(cx, cy, maxRadius, 0, 2 * Math.PI);
+            hCtx.fill();
+
+            if (!events || events.length === 0) {
+                hCtx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+                hCtx.font = '500 13px var(--font-body)';
+                hCtx.textAlign = 'center';
+                hCtx.textBaseline = 'middle';
+                hCtx.fillText('해당 기간에 노이즈 이력이 없습니다.', cx, cy);
+                drawHeatmapGrid(hCtx, cx, cy, maxRadius);
+                return;
+            }
+
+            // Create a Gaussian-weighted heatmap
+            // We'll use radial scans (every degree) to build the heatmap intensity
+            const intensityMap = new Float32Array(360);
+            const sigma = 15; // Spread of influence of a single sound event in degrees
+
+            events.forEach(e => {
+                const centerAngle = e.doa % 360;
+                // 2000 is base noise, normalized volume
+                const volumeWeight = Math.max(0, (e.volume - 2000) / 3000); 
+
+                // Add Gaussian influence to the intensity map
+                for (let i = 0; i < 360; i++) {
+                    let diff = Math.abs(i - centerAngle);
+                    if (diff > 180) diff = 360 - diff;
+                    const weight = Math.exp(-(diff * diff) / (2 * sigma * sigma));
+                    intensityMap[i] += weight * volumeWeight;
+                }
+            });
+
+            // Find max intensity for normalization
+            let maxIntensity = 0;
+            intensityMap.forEach(v => { if (v > maxIntensity) maxIntensity = v; });
+            console.log("Heatmap Max Intensity:", maxIntensity, "Events Count:", events.length);
+
+            // Draw heatmap
+            hCtx.save();
+            hCtx.translate(cx, cy);
+            hCtx.rotate(-Math.PI / 2); // 0 degrees = North
+
+            for (let i = 0; i < 360; i++) {
+                const intensity = maxIntensity > 0 ? intensityMap[i] / maxIntensity : 0;
+                if (intensity > 0.05) {
+                    const startRad = (i * Math.PI) / 180;
+                    const endRad = ((i + 1) * Math.PI) / 180;
+
+                    // Color based on intensity
+                    const hue = 200 - (intensity * 200); // Blueish (200) to reddish (0)
+                    hCtx.fillStyle = `hsla(${hue}, 100%, 50%, ${0.2 + intensity * 0.6})`;
+
+                    hCtx.beginPath();
+                    hCtx.moveTo(0, 0);
+                    hCtx.arc(0, 0, maxRadius, startRad, endRad);
+                    hCtx.closePath();
+                    hCtx.fill();
+                }
+            }
+            hCtx.restore();
+
+            // Overlay grid layout
+            drawHeatmapGrid(hCtx, cx, cy, maxRadius);
+        }
+
+        function drawHeatmapGrid(hCtx, cx, cy, maxRadius) {
+            // Rings
+            hCtx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
+            hCtx.lineWidth = 1;
+            for (let r = 0.25; r <= 1.0; r += 0.25) {
+                hCtx.beginPath();
+                hCtx.arc(cx, cy, maxRadius * r, 0, 2 * Math.PI);
+                hCtx.stroke();
+            }
+
+            // Spokes (every 30 degrees)
+            hCtx.beginPath();
+            for (let angle = 0; angle < 360; angle += 30) {
+                const rad = (angle - 90) * Math.PI / 180;
+                hCtx.moveTo(cx, cy);
+                hCtx.lineTo(cx + maxRadius * Math.cos(rad), cy + maxRadius * Math.sin(rad));
+            }
+            hCtx.stroke();
+
+            // Degree marks
+            hCtx.fillStyle = 'rgba(0, 240, 255, 0.5)';
+            hCtx.font = '500 10px var(--font-display)';
+            hCtx.textAlign = 'center';
+            hCtx.textBaseline = 'middle';
+            hCtx.fillText('0° (N)', cx, cy - maxRadius - 12);
+            hCtx.fillText('90° (E)', cx + maxRadius + 12, cy);
+            hCtx.fillText('180° (S)', cx, cy + maxRadius + 12);
+            hCtx.fillText('270° (W)', cx - maxRadius - 12, cy);
+        }
+
+        async function fetchHeatmapData() {
+            const period = heatmapPeriodSelect.value;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/historical?period=${period}`);
+                if (!res.ok) throw new Error('API query failed');
+                const data = await res.json();
+                drawHeatmap(data.events);
+            } catch (err) {
+                console.error('Error loading heatmap:', err);
+            }
+        }
+
+        // --- Polling Initialization ---
+        fetchData();
+        setInterval(fetchData, 1500); // Poll every 1.5 seconds
+    </script>
+</body>
+</html>
