@@ -1,7 +1,2 @@
-requests
-streamlit
-sqlalchemy
-pandas
-plotly
-numpy
 flask
+gunicorn
